@@ -12,6 +12,8 @@ const App = () => {
     const [first, setFirst] = useState(0); 
     const [rows, setRows] = useState(3); 
     const [displayUsers, setDisplayUsers] = useState([]); 
+    const [searchTerm, setSearchTerm] = useState(''); 
+    const [sortBy, setSortBy] = useState({ field: null, isAsc: true }); 
 
     useEffect(() => {
         axios.get('http://localhost:5000/getUsers') 
@@ -31,17 +33,80 @@ const App = () => {
         const endIndex = startIndex + event.rows; 
         setFirst(startIndex);
         setRows(event.rows); 
-        setDisplayUsers(users.slice(startIndex, endIndex)); 
+        setDisplayUsers(
+            users
+                .filter(user =>
+                    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .slice(startIndex, endIndex)
+        ); 
+    };
+
+    const handleSearch = (e) => {
+        const term = e.target.value; 
+        setSearchTerm(term);
+        const filteredUsers = users.filter(user =>
+            user.name.toLowerCase().includes(term.toLowerCase())
+        );
+        setDisplayUsers(filteredUsers.slice(0, rows));
+        setFirst(0); 
+    };
+
+    const handleSort = (field) => {
+        const isAsc = sortBy.field === field ? !sortBy.isAsc : true;
+        const sortedUsers = [...users].sort((a, b) => {
+            if (a[field] < b[field]) return isAsc ? -1 : 1;
+            if (a[field] > b[field]) return isAsc ? 1 : -1;
+            return 0;
+        });
+        setSortBy({ field, isAsc });
+        setUsers(sortedUsers);
+        setDisplayUsers(
+            sortedUsers
+                .filter(user =>
+                    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .slice(first, first + rows)
+        );
     };
 
     return (
         <div style={{ padding: "50px", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
             <h1 className="text-center">User List</h1>
+            <div className="d-flex justify-content-between w-75 mb-4">
+                <input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="form-control w-50"
+                />
+                <div className="d-flex">
+                    <button 
+                        className="btn btn-primary ml-3"
+                        onClick={() => handleSort('name')}
+                    >
+                        {sortBy.field === 'name' && !sortBy.isAsc ? 'Sort Name Descending' : 'Sort Name Ascending'}
+                    </button>
+                    <button 
+                        className="btn btn-secondary ml-3"
+                        onClick={() => handleSort('age')}
+                    >
+                        {sortBy.field === 'age' && !sortBy.isAsc ? 'Sort Age Descending' : 'Sort Age Ascending'}
+                    </button>
+                    <button 
+                        className="btn btn-success ml-3"
+                        onClick={() => handleSort('dept')}
+                    >
+                        {sortBy.field === 'dept' && !sortBy.isAsc ? 'Sort Dept Descending' : 'Sort Dept Ascending'}
+                    </button>
+                </div>
+            </div>
             {error ? (
                 <div className="alert alert-danger text-center">{error}</div>
             ) : (
                 <>
-                    <table className="table table-bordered mt-4">
+                    <table className="table table-bordered mt-4" style={{ width: '100%' }}>
                         <thead className="thead-dark">
                             <tr>
                                 <th>ID</th>
@@ -64,7 +129,7 @@ const App = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="3" className="text-center">No users available</td>
+                                    <td colSpan="5" className="text-center">No users available</td>
                                 </tr>
                             )}
                         </tbody>
@@ -72,7 +137,9 @@ const App = () => {
                     <Paginator
                         first={first}
                         rows={rows}
-                        totalRecords={users.length}
+                        totalRecords={users.filter(user =>
+                            user.name.toLowerCase().includes(searchTerm.toLowerCase())
+                        ).length}
                         rowsPerPageOptions={[3, 5, 10]}
                         onPageChange={onPageChange}
                         className="mt-3"
